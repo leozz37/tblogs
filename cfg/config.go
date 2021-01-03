@@ -12,8 +12,27 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var config models.Config
-var loc, _ = time.LoadLocation("UTC")
+// Config contains both API and APP configuration from config file
+type Config struct {
+	API APIConfig `yaml:"api"`
+	APP APPConfig `yaml:"app"`
+}
+
+// APIConfig contains only the API configuration from config file
+type APIConfig struct {
+	Host string `yaml:"url"`
+	Key  string `yaml:"key"`
+}
+
+// APPConfig contains only the APP configuration from config file
+type APPConfig struct {
+	SavedPosts     []models.Post `yaml:"saved_posts"`
+	FollowingBlogs []int         `yaml:"following_blogs"`
+	FirstUse       bool          `yaml:"first_use"`
+	LastLogin      time.Time     `yaml:"last_login"`
+	CurrentLogin   time.Time     `yaml:"current_login"`
+	FilteredWords  []string      `yaml:"filtered_words"`
+}
 
 const configPath = "./cfg/config.yml"
 
@@ -39,23 +58,24 @@ func validateConfigPath(path string) error {
 	return nil
 }
 
-// GetAPPConfig returns only the APP config
-func GetAPPConfig() models.APPConfig {
-	return config.APP
-}
+// // GetAPPConfig returns only the APP config
+// func GetAPPConfig() models.APPConfig {
+// 	return config.APP
+// }
 
-// GetAPIConfig returns only the API config for the application
-func GetAPIConfig() models.APIConfig {
-	return config.API
-}
+// // GetAPIConfig returns only the API config for the application
+// func GetAPIConfig() models.APIConfig {
+// 	return config.API
+// }
 
-// GetConfig returns the entire config for the application
-func GetConfig() models.Config {
-	return config
-}
+// // GetConfig returns the entire config for the application
+// func GetConfig() models.Config {
+// 	return config
+// }
 
-func updateConfig() {
-	d, err := yaml.Marshal(&config)
+// UpdateConfig updates the yml file with the latest config
+func (c *Config) UpdateConfig() {
+	d, err := yaml.Marshal(c)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
@@ -71,17 +91,10 @@ func updateConfig() {
 	}
 }
 
-// UpdateAppConfig receives an AppConfig and save it in the config.yml file
-func UpdateAppConfig(a models.APPConfig) {
-	config.APP = a
-
-	updateConfig()
-}
-
 // ResetAPPConfig reset the entire AppConfig and return to the initial state
-func ResetAPPConfig() {
-	config.APP = models.APPConfig{}
-	updateConfig()
+func (c *Config) ResetAPPConfig() {
+	c.APP = APPConfig{}
+	c.UpdateConfig()
 }
 
 func setNewFile() (string, error) {
@@ -106,7 +119,7 @@ func setNewFile() (string, error) {
 }
 
 // Setup prepare and create the config file for the application
-func Setup() {
+func Setup() *Config {
 	cfgPath, err := parseFlags()
 	if err != nil {
 		log.Println(err)
@@ -128,22 +141,27 @@ func Setup() {
 	// Init new YAML decode
 	d := yaml.NewDecoder(file)
 
+	var config Config
+
 	// Start YAML decoding from file
 	if err := d.Decode(&config); err != nil {
 		panic(err)
 	}
 
 	// Update last login date
-	UpdateLoginDate()
+	config.UpdateLoginDate()
+
+	return &config
 }
 
 // UpdateLoginDate update the current login date with time.Now() in UTC
 // It also saves the last login with the value of current login before updating it
-func UpdateLoginDate() {
+func (c *Config) UpdateLoginDate() {
+	var loc, _ = time.LoadLocation("UTC")
 	now := time.Now().In(loc)
 
-	config.APP.LastLogin = config.APP.CurrentLogin
-	config.APP.CurrentLogin = now
+	c.APP.LastLogin = c.APP.CurrentLogin
+	c.APP.CurrentLogin = now
 
-	UpdateAppConfig(config.APP)
+	c.UpdateConfig()
 }

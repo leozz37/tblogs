@@ -13,7 +13,7 @@ import (
 var blogs models.Blogs
 
 // GetBlogs returns a list of Blogs from the Blogio API
-func GetBlogs() models.Blogs {
+func GetBlogs(cfg *cfg.Config) models.Blogs {
 
 	if len(blogs.Blogs) > 0 {
 		return blogs
@@ -21,15 +21,13 @@ func GetBlogs() models.Blogs {
 
 	client := &http.Client{}
 
-	cfgAPI := cfg.GetAPIConfig()
-
-	request, err := http.NewRequest("GET", cfgAPI.Host+"/blogs", nil)
+	request, err := http.NewRequest("GET", cfg.API.Host+"/blogs", nil)
 
 	if err != nil {
 		panic(err)
 	}
 
-	request.Header.Add("BLOGIO-KEY", cfgAPI.Key)
+	request.Header.Add("BLOGIO-KEY", cfg.API.Key)
 
 	resp, err := client.Do(request)
 	if err != nil {

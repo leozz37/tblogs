@@ -18,7 +18,7 @@ const (
 	settingsSection   = "Settings"
 )
 
-func getPagesInfo() (*tview.Pages, *tview.TextView) {
+func (a *App) getPagesInfo() (*tview.Pages, *tview.TextView) {
 	// appCfg := cfg.GetAPPConfig()
 	// The presentation slides.
 	slides := []slide{

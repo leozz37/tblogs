@@ -17,7 +17,7 @@ var posts map[int]models.PostCache
 const defaultTime = 4
 
 // GetPostsByBlog returns a list of Posts for a single blog
-func GetPostsByBlog(blogID int) models.Posts {
+func GetPostsByBlog(blogID int, cfg *cfg.Config) models.Posts {
 
 	if len(posts[blogID].Posts.Posts) > 0 {
 		d := time.Now()
@@ -34,7 +34,7 @@ func GetPostsByBlog(blogID int) models.Posts {
 
 	pr := models.PostRequest{Blogs: []int{blogID}}
 
-	postsResp := fetchPosts(pr)
+	postsResp := fetchPosts(pr, cfg)
 
 	pc := models.PostCache{Posts: postsResp, DateUpdated: time.Now()}
 
@@ -44,15 +44,15 @@ func GetPostsByBlog(blogID int) models.Posts {
 }
 
 // GetPosts returns a list of Posts for a list of Blogs using the Blogs ids
-func GetPosts(blogs []int) models.Posts {
+func GetPosts(blogs []int, cfg *cfg.Config) models.Posts {
 	pr := models.PostRequest{Blogs: blogs}
 
-	postsResp := fetchPosts(pr)
+	postsResp := fetchPosts(pr, cfg)
 
 	return postsResp
 }
 
-func fetchPosts(reqPost models.PostRequest) models.Posts {
+func fetchPosts(reqPost models.PostRequest, cfg *cfg.Config) models.Posts {
 	rJSON, err := json.Marshal(reqPost)
 	if err != nil {
 		panic(err)
@@ -60,17 +60,15 @@ func fetchPosts(reqPost models.PostRequest) models.Posts {
 
 	client := &http.Client{}
 
-	cfgAPI := cfg.GetAPIConfig()
-
 	payload := strings.NewReader(string(rJSON))
 
-	req, err := http.NewRequest("GET", cfgAPI.Host+"/posts", payload)
+	req, err := http.NewRequest("GET", cfg.API.Host+"/posts", payload)
 
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	req.Header.Add("BLOGIO-KEY", cfgAPI.Key)
+	req.Header.Add("BLOGIO-KEY", cfg.API.Key)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)

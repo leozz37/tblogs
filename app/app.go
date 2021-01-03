@@ -9,20 +9,23 @@ import (
 
 type slide func(nextSlide func()) (title string, content tview.Primitive)
 
-var app = tview.NewApplication()
+// var app = tview.NewApplication()
 
 // App contains the tview application and the layout for the display
 type App struct {
 	App    *tview.Application
 	Layout *tview.Flex
+	Config *cfg.Config
 }
 
 // Setup returns an instance of the application
-func Setup() App {
+func Setup() *App {
 
-	cfg.Setup()
+	c := cfg.Setup()
 
-	pages, info := getPagesInfo()
+	var app *App
+
+	pages, info := app.getPagesInfo()
 
 	// Create the main layout.
 	layout := tview.NewFlex().
@@ -30,8 +33,10 @@ func Setup() App {
 		AddItem(pages, 0, 1, true).
 		AddItem(info, 1, 1, false)
 
+	var appTview *tview.Application
+
 	// Shortcuts to navigate the slides.
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	appTview.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch ek := event.Key(); ek {
 		case tcell.KeyCtrlH:
 			goToSection(helpSection)
@@ -47,13 +52,15 @@ func Setup() App {
 		return event
 	})
 
-	a := App{App: app, Layout: layout}
+	app.App = appTview
+	app.Layout = layout
+	app.Config = c
 
-	return a
+	return app
 }
 
 // Start launches the app
-func (a App) Start() {
+func (a *App) Start() {
 	if err := a.App.SetRoot(a.Layout, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}

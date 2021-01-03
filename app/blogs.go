@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/ezeoleaf/tblogs/api"
-	"github.com/ezeoleaf/tblogs/cfg"
 	"github.com/ezeoleaf/tblogs/helpers"
 	"github.com/ezeoleaf/tblogs/models"
 	"github.com/gdamore/tcell"
@@ -15,15 +14,15 @@ var listPosts *tview.List
 var blogs models.Blogs
 var blogPage *tview.Flex
 
-func generateBlogsList() {
+func (a *App) generateBlogsList() {
 	blogPage = tview.NewFlex()
 
-	blogs = api.GetBlogs()
+	blogs = api.GetBlogs(a.Config)
 
 	listBlogs.ShowSecondaryText(false)
 	listBlogs.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyCtrlS {
-			followBlogs()
+			a.followBlogs()
 			return nil
 		} else if event.Key() == tcell.KeyCtrlF {
 			pages.ShowPage(blogsModalName)
@@ -33,9 +32,8 @@ func generateBlogsList() {
 	})
 
 	for _, blog := range blogs.Blogs {
-		appCfg := cfg.GetAPPConfig()
 		r := emptyRune
-		isIn, _ := helpers.IsIn(blog.ID, appCfg.FollowingBlogs)
+		isIn, _ := helpers.IsIn(blog.ID, a.Config.APP.FollowingBlogs)
 		if isIn {
 			r = followRune
 		}
@@ -44,16 +42,15 @@ func generateBlogsList() {
 
 	listPosts = getList()
 	listPosts.SetDoneFunc(func() {
-		app.SetFocus(listBlogs)
+		a.App.SetFocus(listBlogs)
 	})
 	listBlogs.SetSelectedFunc(func(x int, s string, s1 string, r rune) {
 		listPosts.Clear()
 		blogID := blogs.Blogs[x].ID
-		posts := api.GetPostsByBlog(blogID)
-		appCfg := cfg.GetAPPConfig()
+		posts := api.GetPostsByBlog(blogID, a.Config)
 		for _, post := range posts.Posts {
 			r := emptyRune
-			isIn, _ := helpers.IsHash(post.Hash, appCfg.SavedPosts)
+			isIn, _ := helpers.IsHash(post.Hash, a.Config.APP.SavedPosts)
 			if isIn {
 				r = savedRune
 			}
@@ -67,61 +64,59 @@ func generateBlogsList() {
 
 		listPosts.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Key() == tcell.KeyCtrlS {
-				appCfg := cfg.GetAPPConfig()
 
 				x := listPosts.GetCurrentItem()
 
 				post := posts.Posts[x]
 
 				r := emptyRune
-				isIn, ix := helpers.IsHash(post.Hash, appCfg.SavedPosts)
+				isIn, ix := helpers.IsHash(post.Hash, a.Config.APP.SavedPosts)
 				if !isIn {
 					r = savedRune
-					appCfg.SavedPosts = append(appCfg.SavedPosts, post)
+					a.Config.APP.SavedPosts = append(a.Config.APP.SavedPosts, post)
 				} else {
-					appCfg.SavedPosts = append(appCfg.SavedPosts[:ix], appCfg.SavedPosts[ix+1:]...)
+					a.Config.APP.SavedPosts = append(a.Config.APP.SavedPosts[:ix], a.Config.APP.SavedPosts[ix+1:]...)
 				}
-				cfg.UpdateAppConfig(appCfg)
+				a.Config.UpdateConfig()
 				updateItemList(listPosts, x, post.Title, post.Published, r, emptyFunc)
 				generateSavedPosts()
 				return nil
 			}
 			return event
 		})
-		app.SetFocus(listPosts)
+		a.App.SetFocus(listPosts)
 	})
 
 	blogPage.AddItem(listBlogs, 0, 1, true).
 		AddItem(listPosts, 0, 1, false)
 }
 
-func followBlogs() {
-	appCfg := cfg.GetAPPConfig()
+func (a *App) followBlogs() {
 
 	x := listBlogs.GetCurrentItem()
 
 	blog := blogs.Blogs[x]
 
 	r := emptyRune
-	isIn, ix := helpers.IsIn(blog.ID, appCfg.FollowingBlogs)
+	isIn, ix := helpers.IsIn(blog.ID, a.Config.APP.FollowingBlogs)
 	if !isIn {
 		r = followRune
-		appCfg.FollowingBlogs = append(appCfg.FollowingBlogs, blog.ID)
+		a.Config.APP.FollowingBlogs = append(a.Config.APP.FollowingBlogs, blog.ID)
 	} else {
-		appCfg.FollowingBlogs = append(appCfg.FollowingBlogs[:ix], appCfg.FollowingBlogs[ix+1:]...)
+		a.Config.APP.FollowingBlogs = append(a.Config.APP.FollowingBlogs[:ix], a.Config.APP.FollowingBlogs[ix+1:]...)
 	}
-	cfg.UpdateAppConfig(appCfg)
+	a.Config.UpdateConfig()
 
 	updateItemList(listBlogs, x, blog.Name, blog.Company, r, emptyFunc)
 	generateHomeList()
 }
 
-func blogsPage(nextSlide func()) (title string, content tview.Primitive) {
+func (a *App) blogsPage(nextSlide func()) (title string, content tview.Primitive) {
 	pages = tview.NewPages()
 
 	listBlogs = getList()
 
-	generateBlogsList()
+	a.generateBlogsList()
 
 	pages.AddPage("blogs", blogPage, true, true)
 
@@ -135,22 +130,3 @@ func searchBlogs() {
 func cancelSearchBlogs() {
 	//TODO: Add ability to search
 }
-
-// Backup version
-// func openBrowser(url string) {
-// 	var err error
-
-// 	switch runtime.GOOS {
-// 	case "linux":
-// 		err = exec.Command("xdg-open", url).Start()
-// 	case "windows":
-// 		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-// 	case "darwin":
-// 		err = exec.Command("open", url).Start()
-// 	default:
-// 		err = fmt.Errorf("unsupported platform")
-// 	}
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
